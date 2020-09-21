@@ -30,9 +30,13 @@ import org.aperlambda.lambdacommon.Identifier;
 import org.aperlambda.lambdacommon.LambdaConstants;
 import org.jetbrains.annotations.NotNull;
 
+import java.awt.*;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -163,7 +167,7 @@ public class SkyConverter extends Converter implements Closeable
 
             json.addProperty("type", "textured"); // "alright only thing you need to account for is literally insert "type": "textured" into the json" -AMereBagatelle
             json.addProperty("decorations", true); // "New thing to account for reese:  add "decorations": true on every skybox" -AMereBagatelle
-            processSkyboxTexture(json, textureId, textureImage);
+            processSkyboxTexture(json, textureId, textureImage, properties);
 
             int startFadeIn = Objects.requireNonNull(MCPatcherParser.toTickTime(properties.getProperty("startFadeIn"))).intValue();
             int endFadeIn = Objects.requireNonNull(MCPatcherParser.toTickTime(properties.getProperty("endFadeIn"))).intValue();
@@ -246,18 +250,24 @@ public class SkyConverter extends Converter implements Closeable
      * @param json         The FSB JSON file.
      * @param textureId    The Skybox Texture Identifier file.
      * @param textureImage The Skybox Texture file.
+     * @param properties   The MCPatcher properties file.
      */
-    private void processSkyboxTexture(@NotNull JsonObject json, @NotNull Identifier textureId, @NotNull BasicImage textureImage)
+    private void processSkyboxTexture(@NotNull JsonObject json, @NotNull Identifier textureId, @NotNull BasicImage textureImage, @NotNull Properties properties)
     {
         String textureName = textureId.getName().substring(textureId.getName().lastIndexOf("/") + 1, textureId.getName().lastIndexOf("."));
 
+        String blendMode = null;
+        if (properties.containsKey("blend")) {
+            blendMode = properties.getProperty("blend");
+        }
+
         int scale = textureImage.getHeight() / 2;
-        processFaceTexture(json, textureName, "top", textureImage.getSubImage(scale, 0, scale, scale));
-        processFaceTexture(json, textureName, "bottom", textureImage.getSubImage(0, 0, scale, scale));
-        processFaceTexture(json, textureName, "north", textureImage.getSubImage(0, scale, scale, scale));
-        processFaceTexture(json, textureName, "south", textureImage.getSubImage(scale * 2, scale, scale, scale));
-        processFaceTexture(json, textureName, "east", textureImage.getSubImage(scale, scale, scale, scale));
-        processFaceTexture(json, textureName, "west", textureImage.getSubImage(scale * 2, 0, scale, scale));
+        this.processFaceTexture(json, textureName, "top", textureImage.getSubImage(scale, 0, scale, scale), blendMode);
+        this.processFaceTexture(json, textureName, "bottom", textureImage.getSubImage(0, 0, scale, scale), blendMode);
+        this.processFaceTexture(json, textureName, "north", textureImage.getSubImage(0, scale, scale, scale), blendMode);
+        this.processFaceTexture(json, textureName, "south", textureImage.getSubImage(scale * 2, scale, scale, scale), blendMode);
+        this.processFaceTexture(json, textureName, "east", textureImage.getSubImage(scale, scale, scale, scale), blendMode);
+        this.processFaceTexture(json, textureName, "west", textureImage.getSubImage(scale * 2, 0, scale, scale), blendMode);
     }
 
     /**
@@ -267,10 +277,28 @@ public class SkyConverter extends Converter implements Closeable
      * @param textureName The Name of Skybox Texture file.
      * @param face        The Name of Texture Face.
      * @param texture     The Texture Face file.
+     * @param blendMode   The Blend Mode.
      */
-    private void processFaceTexture(@NotNull JsonObject json, @NotNull String textureName, @NotNull String face, @NotNull BasicImage texture)
+    private void processFaceTexture(@NotNull JsonObject json, @NotNull String textureName, @NotNull String face, @NotNull BasicImage texture, String blendMode)
     {
         Identifier faceId = new Identifier(FABRICSKYBOXES_NAMESPACE, String.format("%s/%s.png", FABRICSKYBOXES_PARENT, String.format("%s_%s", textureName, face)));
+
+        if (blendMode != null) {
+            for (int x = 0; x < texture.getWidth(); x++) {
+                for (int y = 0; y < texture.getHeight(); y++) {
+                    int color = texture.getPixelColor(x, y);
+                    int a = (color >> 24) & 0xFF;
+                    int r = (color >> 16) & 0xFF;
+                    int g = (color >> 8) & 0xFF;
+                    int b = (color) & 0xFF;
+
+                    if (blendMode.equals("add"))
+                        a = (r + g + b) / 765;
+                    texture.setPixelColor(x, y, new Color(r, g, b, a).getRGB());
+                }
+            }
+        }
+
         if (!this.cached.containsKey(faceId))
             this.cached.put(faceId, texture.getBytes());
         json.addProperty(String.format("texture_%s", face), faceId.toString());

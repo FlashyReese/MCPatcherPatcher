@@ -283,19 +283,18 @@ public class SkyConverter extends Converter implements Closeable
     {
         Identifier faceId = new Identifier(FABRICSKYBOXES_NAMESPACE, String.format("%s/%s.png", FABRICSKYBOXES_PARENT, String.format("%s_%s", textureName, face)));
 
-        if (blendMode != null) {
-            for (int x = 0; x < texture.getWidth(); x++) {
-                for (int y = 0; y < texture.getHeight(); y++) {
-                    int color = texture.getPixelColor(x, y);
-                    int a = (color >> 24) & 0xFF;
-                    int r = (color >> 16) & 0xFF;
-                    int g = (color >> 8) & 0xFF;
-                    int b = (color) & 0xFF;
+        for (int x = 0; x < texture.getWidth(); x++) {
+            for (int y = 0; y < texture.getHeight(); y++) {
+                int color = texture.getPixelColor(x, y);
+                int a = (color >> 24) & 0xFF;
+                int r = (color >> 16) & 0xFF;
+                int g = (color >> 8) & 0xFF;
+                int b = (color) & 0xFF;
 
-                    if (blendMode.equals("add"))
-                        a = (r + g + b) / 765;
-                    texture.setPixelColor(x, y, new Color(r, g, b, a).getRGB());
-                }
+                if (blendMode == null || blendMode.equals("add"))
+                    a = (r + g + b) / 765;
+                
+                texture.setPixelColor(x, y, new Color(r, g, b, a).getRGB());
             }
         }
 

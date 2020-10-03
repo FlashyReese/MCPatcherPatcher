@@ -293,7 +293,7 @@ public class SkyConverter extends Converter implements Closeable
 
                 if (blendMode == null || blendMode.equals("add"))
                     a = (r + g + b) / 765;
-                
+
                 texture.setPixelColor(x, y, new Color(r, g, b, a).getRGB());
             }
         }
